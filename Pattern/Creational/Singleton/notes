@@ -1,0 +1,12 @@
+Singleton is a creational design pattern that ensures a 
+class has only one instance and provides a global access point to that instance.
+
+Real world Example
+1. Database Connection instance
+2. Logger
+
+Code Explanation
+Private constructor → prevents new Logger()
+Static instance → belongs to class, not object
+getInstance() → single access point
+synchronized → thread safety
