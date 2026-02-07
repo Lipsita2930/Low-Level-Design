@@ -38,6 +38,49 @@ public class Inventory {
         throw new Exception("Invalid Self Id");
     }
 
+
+    // The inventory has that particular Item
+    public boolean hasItem(int code) {
+        for(ItemShelf shelf : ItemShelf){
+            if(shelf.getCode() == code){
+                return  !shelf.getItemList().isEmpty();
+            }
+        }
+       return true;
+    }
+
+
+    // Get the item for a particular ode
+
+    public Item getSelectedProduct(int code){
+
+        Item item = null;
+
+        for(ItemShelf shelf : ItemShelf){
+            if(shelf.getCode() ==  code){
+
+                if(shelf.getItemList().isEmpty()){
+                    return null;
+                }
+                item = shelf.getItemList().get(0);
+            }
+        }
+
+        return item;
+
+    }
+
+
+    public void updateSoldOutItem(int codeNumber) {
+        for (ItemShelf itemShelf : ItemShelf) {
+          if (itemShelf.getCode() == codeNumber) {
+            if (itemShelf.getItemList().isEmpty())
+              itemShelf.setSoldOut(true); // Mark the shelf as sold out
+          }
+        }
+      }
+
+      
     
 
 }

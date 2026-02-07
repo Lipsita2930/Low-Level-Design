@@ -4,6 +4,10 @@ public class Item {
 
     private double price;
     private ItemType ItemType;
+    
+
+    public Item() {
+    }
 
     public Item(double price, ItemType itemType) {
         this.price = price;

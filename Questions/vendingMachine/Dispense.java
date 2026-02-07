@@ -1,6 +1,6 @@
 package Questions.vendingMachine;
 
-public class IDLE implements VendingMachineState {
+public class Dispense implements VendingMachineState {
 
     @Override
     public StateType getStateName() {
@@ -10,8 +10,8 @@ public class IDLE implements VendingMachineState {
     @Override
     public void next(VendingMachineContext context) {
 
-        if(!context.getCoinList().isEmpty()){
-            context.setCurrentState(context.getStateFactory().createState(StateType.HASCOIN));
+        if(context.getCurrentState() instanceof Dispense){
+            context.setCurrentState(context.getStateFactory().createState(StateType.IDLE));
         }
 
     }
