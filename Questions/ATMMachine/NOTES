@@ -1,0 +1,25 @@
+ATM Machine m kya kya hota h
+
+Card
+Account
+
+
+Initially ATM machine is in IDLE STATE
+User will insert the card
+Set is as the current card
+Next State is HASCARDSTATE
+Here you will validate the pin
+If Pin is validated then you will advance to the next sstep that is SELECT Operationn
+There are two type of operation supported i.e. WITHRAW AND CHECK BALANCE
+Set the current Operation State
+Then move to the next step that is perform the operation i.e. Tranasaction State
+Then return the card --- IDLE STATE
+
+
+STATES of ATM Machine
+
+IDLE --  HASCARD -- SELECTOPERATION -- Tranasaction -- IDLE
+
+
+
+There will be ATM Machine inventory also that will actually keeep the Actual Money
