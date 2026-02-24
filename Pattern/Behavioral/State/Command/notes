@@ -1,0 +1,10 @@
+This is a behavioural Design pattern 
+Used when we turn actions into object. 
+This Decouples the sender and Receiver by removing the dependency. 
+It is useful when we need undo/redo functionality, logging, or queueing of requests. 
+Example – Remote Control System, Text Editor Design 
+
+
+Receiver - Light
+Invoker - Remote
+Actions - Command
