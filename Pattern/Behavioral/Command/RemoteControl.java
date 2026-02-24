@@ -1,4 +1,4 @@
-package Pattern.Behavioral.State.Command;
+package Pattern.Behavioral.Command;
 
 public class RemoteControl {
 
