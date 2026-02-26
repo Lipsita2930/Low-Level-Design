@@ -1,0 +1,7 @@
+ 
+
+The request is handled through chain of handlers 
+If the current handler cannot handle the request it is passed to the next. 
+Exactly same as Exception handling in java 
+
+ 
