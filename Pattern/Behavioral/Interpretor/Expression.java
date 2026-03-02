@@ -1,4 +1,4 @@
-package Pattern.Behavioral.Iterator;
+package Pattern.Behavioral.Interpretor;
 
 interface Expression {
     int interpret();

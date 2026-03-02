@@ -1,4 +1,4 @@
-package Pattern.Behavioral.Iterator;
+package Pattern.Behavioral.Interpretor;
 
 public class InterpreterDemo {
     public static void main(String[] args) {

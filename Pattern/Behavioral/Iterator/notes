@@ -1,0 +1,16 @@
+Iteraror 
+
+This is a built in design pattern in java 
+This tell simply not to expose the internal structure of any collection(list, tree etc) 
+We should never tell a client to use for loop to traverse the collection, rather it should be through an iterator. 
+There are 2 methods in iterator – hasNext and next 
+There are 4 part in a iterator  
+
+    Iterartor interface  
+    Concrete Iterator 
+    Aggregate interface  - StudentCollection
+    Concrete Aggregate   - StudentRepo
+
+Flow
+ 
+ Client -> StudentReo(Internally StudentCollection) -> CreateIteraor -> StudentIterator -> use methodw
