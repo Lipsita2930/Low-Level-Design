@@ -1,0 +1,37 @@
+The system would support different parking Floors.
+Entry and Exit pont
+Upon Entry the vehicle would get a ticket, based on the time(hours spent) will calculate the fee and upon exit payment
+It would support vehicle of differnt type
+Differnt payment strategy
+No 2 vehicle should occupy the same place.
+
+Identifying the Core entity
+
+    Vehicletype - enum
+    Vehicle - abstract class 
+            - extended by BIKE, CAR, AUTO
+    BIKE
+    CAR
+    OTHE   
+
+    ParkingFeeStrategy - interface
+                       - responsibility - Calculate the fees
+                       - depends on - vehilce type, duration, duration type.
+    BasicFeeCalculationStrategy
+    PremiumFeeCalculationStrategy
+
+    ParkingSlots - interface
+                 - responsibility - 
+                  - depends on - vehilce type, duration, duration type.
+    
+
+    parkinglot
+    parkingslots
+    Payement - interface - Payment strategies
+
+Design pattern I would be using
+    Singleton - parkinglot
+    Factory - Vehicle object Creation
+    strategy - Payment
+    Enum  - Encapuslating the data - hiding the unnecessary details from client
+          - Enhum actually represents the fixed set of constants
