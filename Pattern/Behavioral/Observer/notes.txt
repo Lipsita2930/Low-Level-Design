@@ -1,0 +1,5 @@
+Observer design pattern has a subject and multiple observers. 
+Any small change in the subject shoul automatically notify the observers. 
+That is a one – many relationship 
+Ex- when a video is uploaded in u tube ------ notification to all the subscriber ( Channel – Subject, Subscriber – Observers) 
+Whenever there is change in stock price users are notified ---- Stock is a subject, users are observer 
