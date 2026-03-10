@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elevator System — How to Write It</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131c;
+    --card: #1a1a28;
+    --border: #2a2a3e;
+    --accent: #6c63ff;
+    --accent2: #ff6584;
+    --accent3: #43e97b;
+    --accent4: #f7971e;
+    --text: #e8e8f0;
+    --muted: #888899;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(108,99,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(108,99,255,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Header ── */
+  .header {
+    text-align: center;
+    margin-bottom: 64px;
+    animation: fadeDown 0.7s ease both;
+  }
+
+  .header .badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 4px 14px;
+    border-radius: 2px;
+    margin-bottom: 20px;
+  }
+
+  .header h1 {
+    font-size: clamp(32px, 5vw, 52px);
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 16px;
+  }
+
+  .header h1 span { color: var(--accent); }
+
+  .header p {
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--muted);
+    max-width: 500px;
+    margin: 0 auto;
+    line-height: 1.7;
+  }
+
+  /* ── Section titles ── */
+  .section-title {
+    font-size: 11px;
+    font-family: var(--mono);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── Architecture diagram ── */
+  .arch-diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 48px;
+    animation: fadeUp 0.6s 0.1s ease both;
+    overflow-x: auto;
+  }
+
+  .arch-layers {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-width: 600px;
+  }
+
+  .arch-layer {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .layer-label {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 8px;
+    min-width: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid var(--border);
+    margin-right: 16px;
+  }
+
+  .layer-boxes {
+    display: flex;
+    gap: 12px;
+    flex: 1;
+    padding: 12px 0;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .arch-box {
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+    white-space: nowrap;
+    position: relative;
+  }
+
+  .arch-box:hover { transform: translateY(-2px); filter: brightness(1.2); }
+
+  .arch-box.entry   { background: rgba(108,99,255,0.15); border-color: var(--accent); color: var(--accent); }
+  .arch-box.ctrl    { background: rgba(67,233,123,0.12); border-color: var(--accent3); color: var(--accent3); }
+  .arch-box.model   { background: rgba(247,151,30,0.12); border-color: var(--accent4); color: var(--accent4); }
+  .arch-box.request { background: rgba(255,101,132,0.12); border-color: var(--accent2); color: var(--accent2); }
+  .arch-box.strategy{ background: rgba(108,99,255,0.15); border-color: #a78bfa; color: #a78bfa; }
+  .arch-box.enum    { background: rgba(100,100,120,0.2); border-color: var(--border); color: var(--muted); }
+
+  .arch-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--border);
+    font-size: 22px;
+    padding: 4px 0;
+    margin-left: 52px;
+  }
+
+  .arch-arrow.horiz {
+    writing-mode: initial;
+    margin-left: 0;
+    padding: 0 4px;
+    font-size: 16px;
+  }
+
+  /* ── Pattern cards ── */
+  .patterns-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-bottom: 48px;
+  }
+
+  .pattern-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    cursor: pointer;
+    transition: all 0.25s;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .pattern-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 32px rgba(108,99,255,0.15);
+  }
+
+  .pattern-card .icon {
+    font-size: 28px;
+    margin-bottom: 12px;
+  }
+
+  .pattern-card h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+
+  .pattern-card .tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    margin-bottom: 10px;
+  }
+
+  .pattern-card p {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* ── Flow steps ── */
+  .flow-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-bottom: 48px;
+    position: relative;
+  }
+
+  .flow-steps::before {
+    content: '';
+    position: absolute;
+    left: 23px;
+    top: 40px;
+    bottom: 40px;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--accent), var(--accent2), var(--accent3));
+    opacity: 0.4;
+  }
+
+  .flow-step {
+    display: flex;
+    gap: 20px;
+    padding: 20px 0;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .step-num {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    background: var(--card);
+    border: 2px solid var(--accent);
+    color: var(--accent);
+    z-index: 1;
+  }
+
+  .step-content {
+    flex: 1;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    transition: border-color 0.2s;
+  }
+
+  .step-content:hover { border-color: var(--accent); }
+
+  .step-content h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .step-content p {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.7;
+    margin-bottom: 10px;
+  }
+
+  .code-snip {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #a0a0c0;
+    line-height: 1.6;
+    overflow-x: auto;
+  }
+
+  .code-snip .kw { color: #a78bfa; }
+  .code-snip .cl { color: #43e97b; }
+  .code-snip .st { color: #f7971e; }
+  .code-snip .cm { color: #555566; }
+
+  /* ── Files overview ── */
+  .files-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 48px;
+  }
+
+  .file-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    animation: fadeUp 0.5s ease both;
+    transition: all 0.2s;
+  }
+
+  .file-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+
+  .file-card .filename {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--accent);
+  }
+
+  .file-card .desc {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .file-card .pkg {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 3px;
+    margin-top: 8px;
+  }
+
+  /* ── LOOK algo viz ── */
+  .algo-viz {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    margin-bottom: 48px;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .elevator-shaft {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 200px;
+    padding: 16px;
+    background: var(--bg);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    overflow-x: auto;
+    margin-top: 16px;
+    position: relative;
+  }
+
+  .floor-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 36px;
+  }
+
+  .floor-block {
+    width: 32px;
+    border-radius: 3px;
+    transition: all 0.4s ease;
+    position: relative;
+  }
+
+  .floor-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--muted);
+  }
+
+  .elevator-car {
+    position: absolute;
+    width: 32px;
+    height: 28px;
+    background: var(--accent);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: white;
+    font-weight: 700;
+    transition: bottom 0.6s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 0 16px rgba(108,99,255,0.5);
+    z-index: 2;
+  }
+
+  /* ── Tips ── */
+  .tips {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+    margin-bottom: 48px;
+  }
+
+  .tip {
+    background: var(--card);
+    border-left: 3px solid var(--accent3);
+    border-radius: 0 8px 8px 0;
+    padding: 16px 20px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.7;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .tip strong {
+    color: var(--accent3);
+    display: block;
+    margin-bottom: 4px;
+    font-size: 13px;
+  }
+
+  .tip.warn { border-left-color: var(--accent2); }
+  .tip.warn strong { color: var(--accent2); }
+  .tip.info { border-left-color: var(--accent4); }
+  .tip.info strong { color: var(--accent4); }
+
+  /* ── Animations ── */
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* stagger children */
+  .patterns-grid .pattern-card:nth-child(1) { animation-delay: 0.05s; }
+  .patterns-grid .pattern-card:nth-child(2) { animation-delay: 0.10s; }
+  .patterns-grid .pattern-card:nth-child(3) { animation-delay: 0.15s; }
+  .patterns-grid .pattern-card:nth-child(4) { animation-delay: 0.20s; }
+
+  .flow-step:nth-child(1) .step-content { animation-delay: 0.05s; }
+  .flow-step:nth-child(2) .step-content { animation-delay: 0.10s; }
+  .flow-step:nth-child(3) .step-content { animation-delay: 0.15s; }
+  .flow-step:nth-child(4) .step-content { animation-delay: 0.20s; }
+  .flow-step:nth-child(5) .step-content { animation-delay: 0.25s; }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 40px 0;
+  }
+
+  .highlight { color: var(--accent); }
+  .highlight2 { color: var(--accent3); }
+  .highlight3 { color: var(--accent2); }
+  .highlight4 { color: var(--accent4); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="badge">System Design · Low-Level Design</div>
+    <h1>Elevator System<br><span>— How to Think & Write It</span></h1>
+    <p>A complete walkthrough of the architecture, design patterns, data flow, and thought process behind writing the elevator system from scratch.</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       SECTION 1 — ARCHITECTURE DIAGRAM
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section-title">01 — Architecture Overview</div>
+
+  <div class="arch-diagram">
+    <div class="arch-layers">
+
+      <!-- Entry Point -->
+      <div class="arch-layer">
+        <div class="layer-label">Entry</div>
+        <div class="layer-boxes">
+          <div class="arch-box entry">ElevatorSystemMain.java</div>
+        </div>
+      </div>
+
+      <div class="arch-arrow">↓ creates &amp; wires everything</div>
+
+      <!-- Controller -->
+      <div class="arch-layer">
+        <div class="layer-label">Control</div>
+        <div class="layer-boxes">
+          <div class="arch-box ctrl">ElevatorController</div>
+          <span style="color:var(--muted);font-family:var(--mono);font-size:11px;">← Singleton</span>
+        </div>
+      </div>
+
+      <div class="arch-arrow">↓ manages</div>
+
+      <!-- Models -->
+      <div class="arch-layer">
+        <div class="layer-label">Model</div>
+        <div class="layer-boxes">
+          <div class="arch-box model">Building</div>
+          <div class="arch-arrow horiz">→</div>
+          <div class="arch-box model">Elevator</div>
+          <div class="arch-arrow horiz">→</div>
+          <div class="arch-box model">Floor</div>
+          <div class="arch-box enum">Direction (enum)</div>
+          <div class="arch-box enum">ElevatorState (enum)</div>
+        </div>
+      </div>
+
+      <div class="arch-arrow">↓ processes</div>
+
+      <!-- Requests -->
+      <div class="arch-layer">
+        <div class="layer-label">Request</div>
+        <div class="layer-boxes">
+          <div class="arch-box request">ElevatorRequest (abstract)</div>
+          <div class="arch-arrow horiz">→</div>
+          <div class="arch-box request">ExternalRequest</div>
+          <div class="arch-box request">InternalRequest</div>
+          <div class="arch-box enum">ElevatorCommand (interface)</div>
+          <div class="arch-box enum">RequestType (enum)</div>
+        </div>
+      </div>
+
+      <div class="arch-arrow">↓ decides next floor via</div>
+
+      <!-- Strategy -->
+      <div class="arch-layer">
+        <div class="layer-label">Strategy</div>
+        <div class="layer-boxes">
+          <div class="arch-box strategy">SchedulingStrategy (interface)</div>
+          <div class="arch-arrow horiz">→</div>
+          <div class="arch-box strategy">LookSchedulingStrategy</div>
+          <div class="arch-box enum">+ FCFS, SCAN (extensible)</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       SECTION 2 — DESIGN PATTERNS
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section-title">02 — Design Patterns Used</div>
+
+  <div class="patterns-grid">
+
+    <div class="pattern-card">
+      <div class="icon">🔒</div>
+      <div class="tag" style="background:rgba(108,99,255,0.15);color:var(--accent)">Singleton</div>
+      <h3>ElevatorController</h3>
+      <p>Only ONE controller exists for the entire building. Built using a private constructor + <code>getInstance()</code> method. Building fetches this singleton instead of creating a new one.</p>
+    </div>
+
+    <div class="pattern-card">
+      <div class="icon">🔧</div>
+      <div class="tag" style="background:rgba(67,233,123,0.12);color:var(--accent3)">Strategy</div>
+      <h3>SchedulingStrategy</h3>
+      <p>The scheduling algorithm is pluggable. You can swap LOOK → FCFS → SCAN at runtime by calling <code>controller.setSchedulingStrategy(...)</code> without touching Elevator or Controller code.</p>
+    </div>
+
+    <div class="pattern-card">
+      <div class="icon">📨</div>
+      <div class="tag" style="background:rgba(255,101,132,0.12);color:var(--accent2)">Command</div>
+      <h3>ElevatorRequest / ElevatorCommand</h3>
+      <p>Every request (internal or external) is an object with an <code>execute()</code> method. Requests can be queued, logged, undone, or replayed — just like real command pattern.</p>
+    </div>
+
+    <div class="pattern-card">
+      <div class="icon">👁️</div>
+      <div class="tag" style="background:rgba(247,151,30,0.12);color:var(--accent4)">Observer</div>
+      <h3>ElevatorObserver (scaffolded)</h3>
+      <p>Elevator is the Subject. When it moves floors or changes state, it can notify observers like a display panel or door controller. The hooks are commented-in ready to activate.</p>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       SECTION 3 — HOW TO WRITE IT (STEP BY STEP)
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section-title">03 — How To Write It (Mental Flow)</div>
+
+  <div class="flow-steps">
+
+    <!-- Step 1 -->
+    <div class="flow-step">
+      <div class="step-num">01</div>
+      <div class="step-content">
+        <h3>🏗️ Start with <span class="highlight">Enums & Simple State</span></h3>
+        <p>Before any class, define what states and directions exist. These are the vocabulary of your system — everything else references them.</p>
+        <div class="code-snip">
+<span class="kw">enum</span> <span class="cl">Direction</span> { UP, DOWN, IDLE }<br>
+<span class="kw">enum</span> <span class="cl">ElevatorState</span> { IDLE, MOVING, STOPPED }
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="flow-step">
+      <div class="step-num">02</div>
+      <div class="step-content">
+        <h3>🏢 Build the <span class="highlight">Domain Models</span></h3>
+        <p>Define the physical world: <code>Floor</code> (just holds a number), <code>Elevator</code> (id, currentFloor, direction, state, request queue), and <code>Building</code> (name, floors, controller reference).</p>
+        <div class="code-snip">
+<span class="cm">// Elevator holds its own queue</span><br>
+<span class="kw">class</span> <span class="cl">Elevator</span> {<br>
+&nbsp;&nbsp;<span class="kw">int</span> id, currentFloor, totalFloors;<br>
+&nbsp;&nbsp;<span class="cl">Direction</span> direction;<br>
+&nbsp;&nbsp;<span class="cl">ElevatorState</span> state;<br>
+&nbsp;&nbsp;<span class="cl">Queue</span>&lt;<span class="cl">ElevatorRequest</span>&gt; requests; <span class="cm">// LinkedList</span><br>
+}
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="flow-step">
+      <div class="step-num">03</div>
+      <div class="step-content">
+        <h3>📨 Define <span class="highlight3">Requests</span> (Command Pattern)</h3>
+        <p>Use an abstract base class <code>ElevatorRequest</code> that implements <code>ElevatorCommand</code>. Then create two concrete types: <code>ExternalRequest</code> (from a floor panel) and <code>InternalRequest</code> (from inside the elevator).</p>
+        <div class="code-snip">
+<span class="kw">interface</span> <span class="cl">ElevatorCommand</span> { <span class="kw">void</span> execute(); }<br><br>
+<span class="kw">abstract class</span> <span class="cl">ElevatorRequest</span> <span class="kw">implements</span> <span class="cl">ElevatorCommand</span> {<br>
+&nbsp;&nbsp;<span class="st">String</span> requestId; <span class="cl">RequestType</span> type; <span class="kw">long</span> timestamp;<br>
+&nbsp;&nbsp;<span class="kw">abstract int</span> getFloor(); <span class="cm">// used by strategy</span><br>
+}<br><br>
+<span class="cm">// External: floorNumber + direction (pressed UP/DOWN on a floor)</span><br>
+<span class="cm">// Internal: elevatorId + destinationFloor (pressed inside cabin)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="flow-step">
+      <div class="step-num">04</div>
+      <div class="step-content">
+        <h3>🔧 Define the <span class="highlight2">Strategy Interface</span></h3>
+        <p>The strategy only needs to answer one question: given this elevator's current state and request queue, <em>what floor should it go to next?</em> Keep the interface minimal.</p>
+        <div class="code-snip">
+<span class="kw">interface</span> <span class="cl">SchedulingStrategy</span> {<br>
+&nbsp;&nbsp;<span class="kw">int</span> getNextStop(<span class="cl">Elevator</span> elevator);<br>
+}<br><br>
+<span class="cm">// LOOK: sweep UP serving all above, then reverse DOWN</span><br>
+<span class="cm">// FCFS: just serve requests in arrival order</span><br>
+<span class="cm">// SCAN: like LOOK but goes all the way to top/bottom</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 5 -->
+    <div class="flow-step">
+      <div class="step-num">05</div>
+      <div class="step-content">
+        <h3>🧠 Write the <span class="highlight">ElevatorController</span> (Singleton)</h3>
+        <p>This is the brain. It holds all elevators and the strategy. It exposes two key methods: <code>requestElevator(floor, dir)</code> for external calls, <code>requestFloor(elevatorId, floor)</code> for internal. Then <code>step()</code> advances the simulation — each elevator asks the strategy for its next stop and moves there.</p>
+        <div class="code-snip">
+<span class="cm">// Singleton getInstance()</span><br>
+<span class="kw">public void</span> requestElevator(<span class="kw">int</span> floor, <span class="cl">Direction</span> dir) {<br>
+&nbsp;&nbsp;<span class="cl">ExternalRequest</span> req = <span class="kw">new</span> <span class="cl">ExternalRequest</span>(...);<br>
+&nbsp;&nbsp;<span class="cl">Elevator</span> best = findBestElevator(req); <span class="cm">// dispatch logic</span><br>
+&nbsp;&nbsp;best.addRequest(req);<br>
+&nbsp;&nbsp;req.execute();<br>
+}<br><br>
+<span class="kw">public void</span> step() { <span class="cm">// advance simulation 1 tick</span><br>
+&nbsp;&nbsp;<span class="kw">for</span> (<span class="cl">Elevator</span> e : elevators) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">int</span> next = strategy.getNextStop(e);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;e.moveToNextStop(next);<br>
+&nbsp;&nbsp;}<br>
+}
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 6 -->
+    <div class="flow-step">
+      <div class="step-num">06</div>
+      <div class="step-content">
+        <h3>🔍 Implement <span class="highlight">LOOK Strategy</span></h3>
+        <p>Split the request queue into two heaps: <strong>upQueue</strong> (min-heap, floors above current) and <strong>downQueue</strong> (max-heap, floors below). If moving UP, take from upQueue; if empty, switch direction. Same for DOWN. If IDLE, pick the nearest request.</p>
+        <div class="code-snip">
+<span class="cm">// Partition requests by floor vs. currentFloor</span><br>
+<span class="cl">PriorityQueue</span> upQueue &nbsp;= <span class="kw">new</span> PQ(ascending);  <span class="cm">// min-heap</span><br>
+<span class="cl">PriorityQueue</span> downQueue = <span class="kw">new</span> PQ(descending); <span class="cm">// max-heap</span><br><br>
+<span class="kw">if</span> (dir == UP)   → poll upQueue   (or switch to DOWN)<br>
+<span class="kw">if</span> (dir == DOWN) → poll downQueue (or switch to UP)<br>
+<span class="kw">if</span> (dir == IDLE) → pick nearest of both queues
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 7 -->
+    <div class="flow-step">
+      <div class="step-num">07</div>
+      <div class="step-content">
+        <h3>🚀 Wire it in <span class="highlight">Main</span></h3>
+        <p>Create a <code>Building</code> → get its <code>ElevatorController</code> → send requests → call <code>step()</code> to advance the simulation. The <code>Building</code> creates the controller singleton internally, so <code>main</code> stays clean.</p>
+        <div class="code-snip">
+<span class="cl">Building</span> b = <span class="kw">new</span> <span class="cl">Building</span>(<span class="st">"TechTower"</span>, 10, 2);<br>
+<span class="cl">ElevatorController</span> ctrl = b.getElevatorController();<br><br>
+ctrl.requestElevator(3, Direction.UP);  <span class="cm">// external</span><br>
+ctrl.requestFloor(1, 7);               <span class="cm">// internal</span><br>
+ctrl.step(); <span class="cm">// moves elevators to next stops</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       SECTION 4 — FILES REFERENCE
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section-title">04 — Every File & Its Role</div>
+
+  <div class="files-grid">
+
+    <div class="file-card">
+      <div class="filename">ElevatorSystemMain.java</div>
+      <div class="desc">Entry point. Wires the building, runs simulation scenarios, prints elevator status.</div>
+      <span class="pkg" style="background:rgba(108,99,255,0.15);color:var(--accent)">root</span>
+    </div>
+
+    <div class="file-card">
+      <div class="filename">ElevatorController.java</div>
+      <div class="desc">Singleton. The brain — dispatches requests to best elevator, runs step() simulation loop, holds strategy.</div>
+      <span class="pkg" style="background:rgba(108,99,255,0.15);color:var(--accent)">root</span>
+    </div>
+
+    <div class="file-card">
+      <div class="filename">Building.java</div>
+      <div class="desc">Holds floors list + creates/holds the ElevatorController singleton reference.</div>
+      <span class="pkg" style="background:rgba(247,151,30,0.12);color:var(--accent4)">model</span>
+    </div>
+
+    <div class="file-card">
+      <div class="filename">Elevator.java</div>
+      <div class="desc">Core entity. Tracks id, currentFloor, direction, state, and pending request queue. Has moveToNextStop().</div>
+      <span class="pkg" style="background:rgba(247,151,30,0.12);color:var(--accent4)">model</span>
+    </div>
+
+    <div class="file-card">
+      <div class="filename">Floor.java</div>
+      <div class="desc">Simple value object. Just holds a floor number. Can be extended with floor-level buttons.</div>
+      <span class="pkg" style="background:rgba(247,151,30,0.12);color:var(--accent4)">model</span>
+    </div>
+
+    <div class="file-card">
+      <div class="filename">Direction.java</div>
+      <div class="desc">Enum: UP / DOWN / IDLE. Used by Elevator and ExternalRequest.</div>
+      <span class="pkg" style="background:rgba(247,151,30,0.12);color:var(--accent4)">model</span>
+    </div>
+
+    <div class="file-card">
+      <div class="filename">ElevatorState.java</div>
+      <div class="desc">Enum: IDLE / MOVING / STOPPED. Represents what the elevator is doing right now.</div>
+      <span class="pkg" style="background:rgba(247,151,30,0.12);color:var(--accent4)">model</span>
+    </div>
+
+    <div class="file-card">
+      <div class="filename">ElevatorCommand.java</div>
+      <div class="desc">Interface with a single execute() method. The foundation of the Command pattern.</div>
+      <span class="pkg" style="background:rgba(255,101,132,0.12);color:var(--accent2)">request</span>
+    </div>
+
+    <div class="file-card">
+      <div class="filename">ElevatorRequest.java</div>
+      <div class="desc">Abstract base class. Has requestId, timestamp, requestType. Implements ElevatorCommand. Subclasses must implement getFloor().</div>
+      <span class="pkg" style="background:rgba(255,101,132,0.12);color:var(--accent2)">request</span>
+    </div>
+
+    <div class="file-card">
+      <div class="filename">ExternalRequest.java</div>
+      <div class="desc">Request from a floor panel. Has floorNumber + direction (UP/DOWN). execute() logs to console.</div>
+      <span class="pkg" style="background:rgba(255,101,132,0.12);color:var(--accent2)">request</span>
+    </div>
+
+    <div class="file-card">
+      <div class="filename">InternalRequest.java</div>
+      <div class="desc">Request from inside the elevator cabin. Has elevatorId + destinationFloor. execute() logs to console.</div>
+      <span class="pkg" style="background:rgba(255,101,132,0.12);color:var(--accent2)">request</span>
+    </div>
+
+    <div class="file-card">
+      <div class="filename">RequestType.java</div>
+      <div class="desc">Enum: INTERNAL / EXTERNAL. Lets you distinguish request origin at runtime.</div>
+      <span class="pkg" style="background:rgba(255,101,132,0.12);color:var(--accent2)">request</span>
+    </div>
+
+    <div class="file-card">
+      <div class="filename">SchedulingStrategy.java</div>
+      <div class="desc">Interface. Single method: getNextStop(elevator). Implement this to add FCFS, SCAN, etc.</div>
+      <span class="pkg" style="background:rgba(167,139,250,0.15);color:#a78bfa">strategy</span>
+    </div>
+
+    <div class="file-card">
+      <div class="filename">LookSchedulingStrategy.java</div>
+      <div class="desc">The real-world elevator algorithm. Sweeps UP then DOWN, only as far as the last request in each direction.</div>
+      <span class="pkg" style="background:rgba(167,139,250,0.15);color:#a78bfa">strategy</span>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       SECTION 5 — KEY INSIGHTS & TIPS
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section-title">05 — Key Insights to Remember</div>
+
+  <div class="tips">
+
+    <div class="tip">
+      <strong>💡 Why Singleton for Controller?</strong>
+      There should only ever be ONE brain managing all elevators in a building. If two controllers existed, they'd assign the same elevator to conflicting floors. Singleton enforces this.
+    </div>
+
+    <div class="tip">
+      <strong>💡 Why Strategy Pattern for Scheduling?</strong>
+      Different buildings need different algorithms. An office building (morning rush all up, evening rush all down) behaves differently than a hospital. Swapping the strategy object at runtime changes the elevator's entire behavior with zero code duplication.
+    </div>
+
+    <div class="tip warn">
+      <strong>⚠️ Elevator's queue is a plain LinkedList</strong>
+      The strategy re-partitions it on every step() call using PriorityQueues internally. The elevator itself doesn't need a sorted queue — the strategy handles ordering logic.
+    </div>
+
+    <div class="tip info">
+      <strong>📌 LOOK vs SCAN</strong>
+      SCAN goes all the way to floor 1 or floor 10 before reversing, even if no requests are there. LOOK reverses as soon as there are no more requests in that direction. LOOK = smarter, fewer empty trips.
+    </div>
+
+    <div class="tip">
+      <strong>💡 findBestElevator() logic</strong>
+      Prefer: idle elevator closest to the requested floor → or an elevator already heading the same direction. Fallback: closest elevator regardless of direction.
+    </div>
+
+    <div class="tip warn">
+      <strong>⚠️ Observer is stubbed out</strong>
+      The Elevator class has the hooks for notifyStateChange() and notifyFloorChange() already written — just commented. To activate a floor display panel, uncomment and implement ElevatorObserver.
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       SECTION 6 — WHAT TO ADD NEXT
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="section-title">06 — What You Could Add Next</div>
+
+  <div class="patterns-grid">
+
+    <div class="pattern-card">
+      <div class="icon">🏭</div>
+      <div class="tag" style="background:rgba(67,233,123,0.12);color:var(--accent3)">Factory</div>
+      <h3>SchedulingStrategyFactory</h3>
+      <p>Create a factory that takes a <code>String</code> like <code>"LOOK"</code> or <code>"FCFS"</code> and returns the right strategy instance. Main.java can then read the strategy from config.</p>
+    </div>
+
+    <div class="pattern-card">
+      <div class="icon">👁️</div>
+      <div class="tag" style="background:rgba(247,151,30,0.12);color:var(--accent4)">Observer</div>
+      <h3>ElevatorDisplay / Door Controller</h3>
+      <p>Implement <code>ElevatorObserver</code> with two methods: <code>onFloorChange()</code> and <code>onStateChange()</code>. Register it on the elevator to get real-time updates.</p>
+    </div>
+
+    <div class="pattern-card">
+      <div class="icon">📋</div>
+      <div class="tag" style="background:rgba(108,99,255,0.15);color:var(--accent)">Extension</div>
+      <h3>FCFS &amp; SCAN Strategies</h3>
+      <p>Both are just new classes implementing <code>SchedulingStrategy</code>. FCFS = poll the head of the queue. SCAN = like LOOK but travel to top/bottom floor before reversing.</p>
+    </div>
+
+    <div class="pattern-card">
+      <div class="icon">🚪</div>
+      <div class="tag" style="background:rgba(255,101,132,0.12);color:var(--accent2)">Model</div>
+      <h3>Door, MaintenanceMode, Weight Sensor</h3>
+      <p>Add a <code>DoorState</code> enum (OPEN/CLOSED) to Elevator. Add <code>isUnderMaintenance</code> flag. Add <code>currentWeight</code> to skip overloaded elevators in dispatch.</p>
+    </div>
+
+  </div>
+
+  <div style="text-align:center; padding: 40px 0 20px; font-family:var(--mono); font-size:11px; color:var(--muted);">
+    Elevator System · Low-Level Design · Java
+  </div>
+
+</div>
+</body>
+</html>

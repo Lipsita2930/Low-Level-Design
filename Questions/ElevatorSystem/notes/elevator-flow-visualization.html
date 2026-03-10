@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elevator System — Live Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Fraunces:ital,wght@0,300;0,700;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0e14;
+    --surface: #12151f;
+    --card: #181c2a;
+    --border: #232840;
+    --active-border: #3d4870;
+    --text: #dde2f0;
+    --muted: #6b7294;
+    --dim: #3a3f5c;
+
+    --blue: #4f8ef7;
+    --green: #3ecf8e;
+    --orange: #f5a623;
+    --pink: #f06292;
+    --purple: #9b7ff4;
+    --cyan: #38bdf8;
+
+    --mono: 'IBM Plex Mono', monospace;
+    --serif: 'Fraunces', serif;
+
+    --step-duration: 600ms;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* subtle noise overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.4;
+  }
+
+  /* scanline */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+    pointer-events: none;
+    z-index: 9998;
+  }
+
+  /* ── Layout ── */
+  .wrapper {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* ── Header ── */
+  .header {
+    margin-bottom: 48px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 28px;
+  }
+
+  .header-left h1 {
+    font-family: var(--serif);
+    font-size: clamp(26px, 4vw, 40px);
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  .header-left h1 em {
+    font-style: italic;
+    color: var(--blue);
+    font-weight: 300;
+  }
+
+  .header-left p {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+
+  .scenario-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .tab {
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--muted);
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .tab:hover { border-color: var(--active-border); color: var(--text); }
+  .tab.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+
+  /* ── Main grid ── */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  @media (max-width: 780px) {
+    .main-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── Elevator shaft ── */
+  .shaft-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    position: sticky;
+    top: 20px;
+  }
+
+  .panel-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .shafts-container {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+  }
+
+  .shaft {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .shaft-title {
+    font-size: 10px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+  }
+
+  .floor-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .floor-num {
+    font-size: 10px;
+    color: var(--dim);
+    width: 16px;
+    text-align: right;
+  }
+
+  .floor-cell {
+    width: 44px;
+    height: 24px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+    position: relative;
+  }
+
+  .floor-cell.has-request {
+    border-color: var(--orange);
+    background: rgba(245,166,35,0.08);
+  }
+
+  .floor-cell.has-request::after {
+    content: '●';
+    font-size: 8px;
+    color: var(--orange);
+  }
+
+  .elevator-car {
+    width: 44px;
+    height: 24px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    transition: all var(--step-duration) cubic-bezier(0.4,0,0.2,1);
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .elevator-car.e1 { background: var(--blue); box-shadow: 0 0 12px rgba(79,142,247,0.4); }
+  .elevator-car.e2 { background: var(--purple); box-shadow: 0 0 12px rgba(155,127,244,0.4); }
+  .elevator-car.moving { animation: pulse-car 0.5s ease infinite alternate; }
+  .elevator-car.stopped { animation: flash-stop 0.3s ease; }
+
+  @keyframes pulse-car {
+    from { filter: brightness(1); }
+    to   { filter: brightness(1.4); }
+  }
+
+  @keyframes flash-stop {
+    0%   { transform: scale(1.1); }
+    100% { transform: scale(1); }
+  }
+
+  .dir-arrow {
+    font-size: 14px;
+    margin-left: 4px;
+    min-width: 14px;
+    transition: color 0.3s;
+  }
+
+  /* ── Flow panel ── */
+  .flow-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* ── Step controls ── */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: 9px 20px;
+    border-radius: 5px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    letter-spacing: 0.5px;
+  }
+
+  .btn-primary {
+    background: var(--blue);
+    color: #fff;
+  }
+  .btn-primary:hover { filter: brightness(1.15); transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .btn-ghost:hover { border-color: var(--active-border); color: var(--text); }
+
+  .step-indicator {
+    font-size: 11px;
+    color: var(--muted);
+    margin-left: auto;
+  }
+
+  .step-indicator span {
+    color: var(--blue);
+    font-weight: 700;
+  }
+
+  /* ── Call stack / trace ── */
+  .trace-area {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .trace-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .trace-header .label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .trace-header .live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    animation: blink 1.2s ease infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+  }
+
+  .trace-body {
+    padding: 16px 20px;
+    min-height: 220px;
+    max-height: 320px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .trace-body::-webkit-scrollbar { width: 4px; }
+  .trace-body::-webkit-scrollbar-track { background: transparent; }
+  .trace-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .trace-line {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    opacity: 0;
+    transform: translateX(-8px);
+    animation: slideIn 0.3s ease forwards;
+  }
+
+  @keyframes slideIn {
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .trace-line .indent {
+    color: var(--dim);
+    flex-shrink: 0;
+    font-size: 11px;
+  }
+
+  .trace-line .method {
+    font-weight: 600;
+  }
+
+  .trace-line .args { color: var(--muted); }
+  .trace-line .arrow { color: var(--dim); }
+  .trace-line .result { font-style: italic; }
+
+  .trace-line.highlight-line {
+    background: rgba(79,142,247,0.06);
+    border-left: 2px solid var(--blue);
+    padding-left: 8px;
+    border-radius: 0 4px 4px 0;
+    margin-left: -10px;
+  }
+
+  /* color classes */
+  .c-blue   { color: var(--blue); }
+  .c-green  { color: var(--green); }
+  .c-orange { color: var(--orange); }
+  .c-pink   { color: var(--pink); }
+  .c-purple { color: var(--purple); }
+  .c-cyan   { color: var(--cyan); }
+  .c-muted  { color: var(--muted); }
+
+  /* ── State table ── */
+  .state-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .state-panel table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  .state-panel th {
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+  }
+
+  .state-panel td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.3s;
+  }
+
+  .state-panel tr:last-child td { border-bottom: none; }
+  .state-panel tr.changed td { background: rgba(79,142,247,0.07); }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  .badge-idle    { background: rgba(107,114,148,0.2); color: var(--muted); }
+  .badge-moving  { background: rgba(79,142,247,0.2); color: var(--blue); }
+  .badge-stopped { background: rgba(62,207,142,0.2); color: var(--green); }
+  .badge-up      { background: rgba(79,142,247,0.15); color: var(--blue); }
+  .badge-down    { background: rgba(240,98,146,0.15); color: var(--pink); }
+
+  /* ── Explanation box ── */
+  .explain-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--blue);
+    border-radius: 0 8px 8px 0;
+    padding: 16px 20px;
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.7;
+    transition: all 0.4s ease;
+    min-height: 60px;
+  }
+
+  .explain-box strong { color: var(--blue); }
+  .explain-box code {
+    background: rgba(79,142,247,0.1);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    color: var(--cyan);
+  }
+
+  /* ── Divider ── */
+  .divider-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--dim);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .divider-label::before, .divider-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* empty trace */
+  .trace-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 180px;
+    color: var(--dim);
+    font-size: 12px;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .trace-empty .icon { font-size: 32px; opacity: 0.4; }
+
+  /* ── progress bar ── */
+  .progress-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--blue), var(--purple));
+    border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <h1>Elevator System<br><em>Live Flow Tracer</em></h1>
+      <p>Step through each method call and watch the elevator move in real time</p>
+    </div>
+    <div class="scenario-tabs">
+      <div class="tab active" onclick="loadScenario(0, this)">Scenario 1 · External</div>
+      <div class="tab" onclick="loadScenario(1, this)">Scenario 2 · Internal</div>
+      <div class="tab" onclick="loadScenario(2, this)">Scenario 3 · Multi-Request</div>
+    </div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="main-grid">
+
+    <!-- LEFT: Elevator shaft -->
+    <div class="shaft-panel">
+      <div class="panel-label">Building · TechTower</div>
+
+      <div class="shafts-container">
+        <!-- Elevator 1 -->
+        <div>
+          <div style="text-align:center;font-size:10px;color:var(--blue);margin-bottom:8px;letter-spacing:1px;">E1</div>
+          <div class="shaft" id="shaft1"></div>
+        </div>
+        <!-- Elevator 2 -->
+        <div>
+          <div style="text-align:center;font-size:10px;color:var(--purple);margin-bottom:8px;letter-spacing:1px;">E2</div>
+          <div class="shaft" id="shaft2"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;">
+        <div class="panel-label">Elevator State</div>
+        <div class="state-panel">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Floor</th>
+                <th>Dir</th>
+                <th>State</th>
+                <th>Queue</th>
+              </tr>
+            </thead>
+            <tbody id="stateTable">
+              <tr id="stateRow1">
+                <td class="c-blue">E1</td>
+                <td id="s1-floor">1</td>
+                <td id="s1-dir"><span class="badge badge-idle">IDLE</span></td>
+                <td id="s1-state"><span class="badge badge-idle">IDLE</span></td>
+                <td id="s1-queue">0</td>
+              </tr>
+              <tr id="stateRow2">
+                <td class="c-purple">E2</td>
+                <td id="s2-floor">1</td>
+                <td id="s2-dir"><span class="badge badge-idle">IDLE</span></td>
+                <td id="s2-state"><span class="badge badge-idle">IDLE</span></td>
+                <td id="s2-queue">0</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Flow trace -->
+    <div class="flow-panel">
+
+      <!-- Controls -->
+      <div class="controls">
+        <button class="btn btn-primary" id="nextBtn" onclick="nextStep()">▶ Next Step</button>
+        <button class="btn btn-ghost" onclick="resetScenario()">↺ Reset</button>
+        <div class="step-indicator">Step <span id="stepNum">0</span> / <span id="totalSteps">0</span></div>
+        <div style="width:100%;">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Explanation -->
+      <div class="explain-box" id="explainBox">
+        Press <strong>Next Step</strong> to begin tracing the flow — each click advances one method call at a time.
+      </div>
+
+      <!-- Trace -->
+      <div class="trace-area">
+        <div class="trace-header">
+          <div class="label">Call Trace</div>
+          <div class="live-dot"></div>
+        </div>
+        <div class="trace-body" id="traceBody">
+          <div class="trace-empty">
+            <div class="icon">⌥</div>
+            <div>Trace will appear here step by step</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+
+const TOTAL_FLOORS = 10;
+
+let elevators = [
+  { id: 1, floor: 1, direction: 'IDLE', state: 'IDLE', queue: 0 },
+  { id: 2, floor: 1, direction: 'IDLE', state: 'IDLE', queue: 0 }
+];
+
+let floorRequests = {}; // { floorNum: true }
+let currentStep = 0;
+let currentScenario = 0;
+let traceLines = [];
+
+// ═══════════════════════════════════════════════════════
+// SCENARIOS — each step has: trace lines + state changes + explain
+// ═══════════════════════════════════════════════════════
+
+const scenarios = [
+
+  // ── SCENARIO 0: External Request ──────────────────────
+  {
+    title: 'External Request — Floor 3 UP',
+    steps: [
+      {
+        explain: '<strong>main()</strong> starts. It creates a <code>Building("TechTower", 10, 2)</code>. Building\'s constructor calls <code>ElevatorController.getInstance(2, 10)</code> — this creates the Singleton with 2 elevators and 10 floors.',
+        trace: [
+          { indent: 0, text: '<span class="c-blue method">main()</span>', highlight: true },
+          { indent: 1, text: '→ <span class="c-green">new Building</span><span class="c-muted">("TechTower", 10, 2)</span>' },
+          { indent: 2, text: '→ <span class="c-green">ElevatorController</span><span class="c-muted">.getInstance(2, 10)</span>' },
+          { indent: 3, text: '→ <span class="c-muted">new Elevator(1)  // floor=1, IDLE</span>' },
+          { indent: 3, text: '→ <span class="c-muted">new Elevator(2)  // floor=1, IDLE</span>' },
+          { indent: 3, text: '→ <span class="c-muted">new Floor(1..10)</span>' },
+        ],
+        stateChange: null
+      },
+      {
+        explain: '<strong>controller.requestElevator(3, UP)</strong> is called. This creates a new <code>ExternalRequest</code> object and calls <code>execute()</code> on it.',
+        trace: [
+          { indent: 0, text: '<span class="c-orange method">controller.requestElevator</span><span class="c-muted">(3, UP)</span>', highlight: true },
+          { indent: 1, text: '→ <span class="c-pink">new ExternalRequest</span><span class="c-muted">("EXT-3-UP-...", 3, UP)</span>' },
+          { indent: 1, text: '→ <span class="c-orange">request.execute()</span>' },
+          { indent: 2, text: '→ prints <span class="c-muted">"[ExternalRequest] Elevator requested at floor 3 going UP"</span>' },
+        ],
+        stateChange: { floorRequests: { 3: true } }
+      },
+      {
+        explain: '<strong>processRequest()</strong> is called inside execute(). It runs <code>findBestElevator()</code> — Elevator 1 is IDLE and closest (distance = |1-3| = 2), so the request is added to Elevator 1\'s queue.',
+        trace: [
+          { indent: 2, text: '→ <span class="c-green method">controller.processRequest</span><span class="c-muted">(request)</span>', highlight: true },
+          { indent: 3, text: '→ <span class="c-cyan">findBestElevator</span><span class="c-muted">(request)</span>' },
+          { indent: 4, text: '→ <span class="c-muted">E1: IDLE, distance = |1-3| = 2  ✓ best</span>' },
+          { indent: 4, text: '→ <span class="c-muted">E2: IDLE, distance = |1-3| = 2  (tie, E1 wins)</span>' },
+          { indent: 3, text: '→ <span class="c-blue">elevator1.addRequest</span><span class="c-muted">(request)</span>' },
+          { indent: 4, text: '→ <span class="c-muted">queue: [ExternalRequest(floor=3)]</span>' },
+        ],
+        stateChange: { e1: { queue: 1 } }
+      },
+      {
+        explain: '<strong>controller.step()</strong> is called. The controller loops all elevators. Elevator 1 has a request, so it asks the LOOK strategy: "what floor should I go to next?"',
+        trace: [
+          { indent: 0, text: '<span class="c-blue method">controller.step()</span>', highlight: true },
+          { indent: 1, text: '→ loop elevators' },
+          { indent: 2, text: '→ <span class="c-muted">Elevator 1 has requests → ask strategy</span>' },
+          { indent: 2, text: '→ <span class="c-purple">strategy.getNextStop</span><span class="c-muted">(elevator1)</span>' },
+        ],
+        stateChange: null
+      },
+      {
+        explain: '<strong>LookSchedulingStrategy.getNextStop()</strong> runs. It splits requests into upQueue and downQueue. Floor 3 > currentFloor 1 → goes to upQueue. Elevator is IDLE → <code>handleIdleState()</code> → picks floor 3, sets direction UP.',
+        trace: [
+          { indent: 2, text: '<span class="c-purple method">LookStrategy.getNextStop</span><span class="c-muted">(e1)</span>', highlight: true },
+          { indent: 3, text: '→ <span class="c-muted">floor 3 > currentFloor 1 → upQueue</span>' },
+          { indent: 3, text: '→ <span class="c-muted">direction == IDLE → handleIdleState()</span>' },
+          { indent: 4, text: '→ <span class="c-muted">nearestUp = 3, hasDown = false</span>' },
+          { indent: 4, text: '→ <span class="c-blue">setDirection(UP)</span>' },
+          { indent: 4, text: '→ <span class="c-green">return 3</span>' },
+        ],
+        stateChange: { e1: { direction: 'UP' } }
+      },
+      {
+        explain: '<strong>elevator1.moveToNextStop(3)</strong> runs. It sets state to MOVING, then steps the floor counter from 1→2→3. When it arrives, <code>completeArrival()</code> is called. Queue is now empty → back to IDLE.',
+        trace: [
+          { indent: 2, text: '<span class="c-blue method">elevator1.moveToNextStop</span><span class="c-muted">(3)</span>', highlight: true },
+          { indent: 3, text: '→ <span class="c-orange">setState(MOVING)</span>' },
+          { indent: 3, text: '→ <span class="c-muted">currentFloor: 1 → 2 → 3</span>' },
+          { indent: 3, text: '→ <span class="c-green">completeArrival()</span>' },
+          { indent: 4, text: '→ <span class="c-orange">setState(STOPPED)</span>' },
+          { indent: 4, text: '→ <span class="c-muted">prints "[Elevator 1] Arrived at floor 3 | Direction: UP"</span>' },
+          { indent: 4, text: '→ <span class="c-muted">queue empty → setDirection(IDLE), setState(IDLE)</span>' },
+        ],
+        stateChange: { e1: { floor: 3, direction: 'IDLE', state: 'IDLE', queue: 0 }, floorRequests: {} }
+      }
+    ]
+  },
+
+  // ── SCENARIO 1: Internal Request ──────────────────────
+  {
+    title: 'Internal Request — Elevator 1 to Floor 7',
+    steps: [
+      {
+        explain: 'Elevator 1 is already at floor 3 from a previous trip. Now someone <em>inside</em> the cabin presses <strong>floor 7</strong>. This calls <code>controller.requestFloor(1, 7)</code>.',
+        trace: [
+          { indent: 0, text: '<span class="c-muted">// E1 currently at floor 3</span>' },
+          { indent: 0, text: '<span class="c-orange method">controller.requestFloor</span><span class="c-muted">(1, 7)</span>', highlight: true },
+          { indent: 1, text: '→ <span class="c-pink">new InternalRequest</span><span class="c-muted">("INT-1-7-...", 1, 7)</span>' },
+          { indent: 1, text: '→ <span class="c-orange">request.execute()</span>' },
+          { indent: 2, text: '→ prints <span class="c-muted">"[InternalRequest] Elevator 1 to floor 7"</span>' },
+        ],
+        stateChange: { e1: { floor: 3 } }
+      },
+      {
+        explain: '<strong>processRequest()</strong> detects it\'s an <code>InternalRequest</code>. Instead of finding the best elevator, it directly looks up Elevator 1 by ID using <code>getElevatorById(1)</code> and adds the request to its queue.',
+        trace: [
+          { indent: 2, text: '→ <span class="c-green method">controller.processRequest</span><span class="c-muted">(request)</span>', highlight: true },
+          { indent: 3, text: '→ <span class="c-muted">instanceof InternalRequest → true</span>' },
+          { indent: 3, text: '→ <span class="c-cyan">getElevatorById</span><span class="c-muted">(1)  // finds E1 directly</span>' },
+          { indent: 3, text: '→ <span class="c-blue">elevator1.addRequest</span><span class="c-muted">(request)</span>' },
+          { indent: 4, text: '→ <span class="c-muted">queue: [InternalRequest(floor=7)]</span>' },
+        ],
+        stateChange: { e1: { queue: 1 } }
+      },
+      {
+        explain: '<strong>strategy.getNextStop()</strong> runs for Elevator 1. Floor 7 > currentFloor 3 → upQueue. Elevator is IDLE → handleIdleState() → sets direction UP → returns 7.',
+        trace: [
+          { indent: 0, text: '<span class="c-blue method">controller.step()</span>' },
+          { indent: 1, text: '→ <span class="c-purple method">LookStrategy.getNextStop</span><span class="c-muted">(e1)</span>', highlight: true },
+          { indent: 2, text: '→ <span class="c-muted">floor 7 > currentFloor 3 → upQueue</span>' },
+          { indent: 2, text: '→ <span class="c-muted">IDLE → handleIdleState()</span>' },
+          { indent: 3, text: '→ <span class="c-blue">setDirection(UP)</span>' },
+          { indent: 3, text: '→ <span class="c-green">return 7</span>' },
+        ],
+        stateChange: { e1: { direction: 'UP', state: 'MOVING' } }
+      },
+      {
+        explain: '<strong>moveToNextStop(7)</strong> — Elevator 1 travels from floor 3 up to floor 7. Steps: 3→4→5→6→7. Arrives, queue empties, goes IDLE.',
+        trace: [
+          { indent: 1, text: '<span class="c-blue method">elevator1.moveToNextStop</span><span class="c-muted">(7)</span>', highlight: true },
+          { indent: 2, text: '→ <span class="c-orange">setState(MOVING)</span>' },
+          { indent: 2, text: '→ <span class="c-muted">floor: 3 → 4 → 5 → 6 → 7</span>' },
+          { indent: 2, text: '→ <span class="c-green">completeArrival()</span>' },
+          { indent: 3, text: '→ <span class="c-muted">"[Elevator 1] Arrived at floor 7 | Direction: UP"</span>' },
+          { indent: 3, text: '→ <span class="c-muted">queue empty → IDLE</span>' },
+        ],
+        stateChange: { e1: { floor: 7, direction: 'IDLE', state: 'IDLE', queue: 0 } }
+      }
+    ]
+  },
+
+  // ── SCENARIO 2: Multi-Request LOOK ────────────────────
+  {
+    title: 'Multi-Request — LOOK Strategy',
+    steps: [
+      {
+        explain: '3 external requests arrive: floor 6↑, floor 2↓, floor 8↑. All 3 get queued on Elevator 1 (E1 at floor 1, IDLE, picked as best each time).',
+        trace: [
+          { indent: 0, text: '<span class="c-muted">// 3 requests arrive quickly</span>' },
+          { indent: 0, text: '<span class="c-orange">requestElevator</span><span class="c-muted">(6, UP)  → E1.addRequest(floor=6)</span>', highlight: true },
+          { indent: 0, text: '<span class="c-orange">requestElevator</span><span class="c-muted">(2, DOWN) → E1.addRequest(floor=2)</span>' },
+          { indent: 0, text: '<span class="c-orange">requestElevator</span><span class="c-muted">(8, UP)  → E1.addRequest(floor=8)</span>' },
+          { indent: 0, text: '<span class="c-muted">// E1 queue: [6, 2, 8]</span>' },
+        ],
+        stateChange: { e1: { queue: 3 }, floorRequests: { 6: true, 2: true, 8: true } }
+      },
+      {
+        explain: '<strong>Step 1 — LOOK partitions.</strong> E1 is at floor 1. Floors above: 6, 8 → upQueue (min-heap). Floor 2 > floor 1 also goes to upQueue. Wait — floor 2 > 1 so it goes up too. IDLE → handleIdleState → nearest is floor 2, sets UP. Returns floor 2.',
+        trace: [
+          { indent: 0, text: '<span class="c-blue method">controller.step()</span>  <span class="c-muted">// Step 1</span>' },
+          { indent: 1, text: '<span class="c-purple">LookStrategy.getNextStop</span><span class="c-muted">(e1 @ floor 1)</span>', highlight: true },
+          { indent: 2, text: '→ <span class="c-muted">floor 6 > 1 → upQueue</span>' },
+          { indent: 2, text: '→ <span class="c-muted">floor 2 > 1 → upQueue</span>' },
+          { indent: 2, text: '→ <span class="c-muted">floor 8 > 1 → upQueue</span>' },
+          { indent: 2, text: '→ <span class="c-muted">IDLE, nearestUp=2 → setDirection(UP)</span>' },
+          { indent: 2, text: '→ <span class="c-green">return 2  (nearest first)</span>' },
+          { indent: 1, text: '<span class="c-blue">elevator1.moveToNextStop</span><span class="c-muted">(2) → arrives</span>' },
+        ],
+        stateChange: { e1: { floor: 2, direction: 'UP', state: 'STOPPED', queue: 2 }, floorRequests: { 6: true, 8: true } }
+      },
+      {
+        explain: '<strong>Step 2.</strong> E1 at floor 2, direction UP. Remaining queue: [6, 8]. Both > 2 → upQueue. Moving UP → poll smallest = 6. Moves to floor 6.',
+        trace: [
+          { indent: 0, text: '<span class="c-blue method">controller.step()</span>  <span class="c-muted">// Step 2</span>' },
+          { indent: 1, text: '<span class="c-purple">LookStrategy.getNextStop</span><span class="c-muted">(e1 @ floor 2, UP)</span>', highlight: true },
+          { indent: 2, text: '→ <span class="c-muted">floor 6 > 2 → upQueue</span>' },
+          { indent: 2, text: '→ <span class="c-muted">floor 8 > 2 → upQueue</span>' },
+          { indent: 2, text: '→ <span class="c-muted">direction UP → poll upQueue → smallest = 6</span>' },
+          { indent: 2, text: '→ <span class="c-green">return 6</span>' },
+          { indent: 1, text: '<span class="c-blue">elevator1.moveToNextStop</span><span class="c-muted">(6) → 2→3→4→5→6</span>' },
+        ],
+        stateChange: { e1: { floor: 6, direction: 'UP', state: 'STOPPED', queue: 1 }, floorRequests: { 8: true } }
+      },
+      {
+        explain: '<strong>Step 3.</strong> E1 at floor 6, direction UP. Remaining: [8]. Floor 8 > 6 → upQueue. Moving UP → poll → returns 8. Elevator sweeps all the way up. Queue empty → IDLE.',
+        trace: [
+          { indent: 0, text: '<span class="c-blue method">controller.step()</span>  <span class="c-muted">// Step 3</span>' },
+          { indent: 1, text: '<span class="c-purple">LookStrategy.getNextStop</span><span class="c-muted">(e1 @ floor 6, UP)</span>', highlight: true },
+          { indent: 2, text: '→ <span class="c-muted">floor 8 > 6 → upQueue</span>' },
+          { indent: 2, text: '→ <span class="c-muted">direction UP → poll upQueue → 8</span>' },
+          { indent: 2, text: '→ <span class="c-green">return 8</span>' },
+          { indent: 1, text: '<span class="c-blue">elevator1.moveToNextStop</span><span class="c-muted">(8) → 6→7→8</span>' },
+          { indent: 2, text: '→ <span class="c-muted">queue empty → IDLE  ✓ all served</span>' },
+        ],
+        stateChange: { e1: { floor: 8, direction: 'IDLE', state: 'IDLE', queue: 0 }, floorRequests: {} }
+      }
+    ]
+  }
+];
+
+// ═══════════════════════════════════════════════════════
+// SHAFT RENDERING
+// ═══════════════════════════════════════════════════════
+
+function buildShaft(shaftId, elevatorClass, elevator) {
+  const shaft = document.getElementById(shaftId);
+  shaft.innerHTML = '';
+
+  for (let f = TOTAL_FLOORS; f >= 1; f--) {
+    const row = document.createElement('div');
+    row.className = 'floor-row';
+
+    const num = document.createElement('div');
+    num.className = 'floor-num';
+    num.textContent = f;
+
+    const cell = document.createElement('div');
+    cell.className = 'floor-cell';
+    cell.id = `${shaftId}-cell-${f}`;
+
+    if (floorRequests[f]) cell.classList.add('has-request');
+
+    if (elevator.floor === f) {
+      const car = document.createElement('div');
+      car.className = `elevator-car ${elevatorClass}`;
+      car.id = `car-${shaftId}`;
+      const arrow = elevator.direction === 'UP' ? '↑' : elevator.direction === 'DOWN' ? '↓' : '·';
+      car.textContent = arrow;
+      cell.appendChild(car);
+      cell.style.border = 'none';
+      cell.style.background = 'transparent';
+    }
+
+    row.appendChild(num);
+    row.appendChild(cell);
+    shaft.appendChild(row);
+  }
+}
+
+function renderShafts() {
+  buildShaft('shaft1', 'e1', elevators[0]);
+  buildShaft('shaft2', 'e2', elevators[1]);
+}
+
+// ═══════════════════════════════════════════════════════
+// STATE TABLE
+// ═══════════════════════════════════════════════════════
+
+function dirBadge(d) {
+  if (d === 'UP')   return '<span class="badge badge-up">↑ UP</span>';
+  if (d === 'DOWN') return '<span class="badge badge-down">↓ DOWN</span>';
+  return '<span class="badge badge-idle">IDLE</span>';
+}
+
+function stateBadge(s) {
+  if (s === 'MOVING')  return '<span class="badge badge-moving">MOVING</span>';
+  if (s === 'STOPPED') return '<span class="badge badge-stopped">STOPPED</span>';
+  return '<span class="badge badge-idle">IDLE</span>';
+}
+
+function updateStateTable(changed1, changed2) {
+  document.getElementById('s1-floor').textContent = elevators[0].floor;
+  document.getElementById('s1-dir').innerHTML   = dirBadge(elevators[0].direction);
+  document.getElementById('s1-state').innerHTML = stateBadge(elevators[0].state);
+  document.getElementById('s1-queue').textContent = elevators[0].queue;
+
+  document.getElementById('s2-floor').textContent = elevators[1].floor;
+  document.getElementById('s2-dir').innerHTML   = dirBadge(elevators[1].direction);
+  document.getElementById('s2-state').innerHTML = stateBadge(elevators[1].state);
+  document.getElementById('s2-queue').textContent = elevators[1].queue;
+
+  document.getElementById('stateRow1').className = changed1 ? 'changed' : '';
+  document.getElementById('stateRow2').className = changed2 ? 'changed' : '';
+
+  setTimeout(() => {
+    document.getElementById('stateRow1').className = '';
+    document.getElementById('stateRow2').className = '';
+  }, 900);
+}
+
+// ═══════════════════════════════════════════════════════
+// TRACE RENDERING
+// ═══════════════════════════════════════════════════════
+
+function appendTrace(lines) {
+  const body = document.getElementById('traceBody');
+
+  // Clear empty state
+  const empty = body.querySelector('.trace-empty');
+  if (empty) body.innerHTML = '';
+
+  // Divider if not first
+  if (body.children.length > 0) {
+    const div = document.createElement('div');
+    div.style.cssText = 'height:1px;background:var(--border);margin:8px 0;';
+    body.appendChild(div);
+  }
+
+  lines.forEach((line, i) => {
+    const el = document.createElement('div');
+    el.className = 'trace-line' + (line.highlight ? ' highlight-line' : '');
+    el.style.animationDelay = `${i * 60}ms`;
+
+    const indent = '  '.repeat(line.indent);
+    el.innerHTML = `<span class="indent">${indent}</span><span>${line.text}</span>`;
+    body.appendChild(el);
+  });
+
+  // Scroll to bottom
+  setTimeout(() => { body.scrollTop = body.scrollHeight; }, 100);
+}
+
+// ═══════════════════════════════════════════════════════
+// STEP ENGINE
+// ═══════════════════════════════════════════════════════
+
+function applyStateChange(change) {
+  if (!change) return { c1: false, c2: false };
+  let c1 = false, c2 = false;
+
+  if (change.e1) {
+    Object.assign(elevators[0], change.e1);
+    c1 = true;
+  }
+  if (change.e2) {
+    Object.assign(elevators[1], change.e2);
+    c2 = true;
+  }
+  if (change.floorRequests !== undefined) {
+    floorRequests = { ...change.floorRequests };
+  }
+  return { c1, c2 };
+}
+
+function nextStep() {
+  const scenario = scenarios[currentScenario];
+  if (currentStep >= scenario.steps.length) return;
+
+  const step = scenario.steps[currentStep];
+
+  // Apply state
+  const { c1, c2 } = applyStateChange(step.stateChange);
+
+  // Update UI
+  renderShafts();
+  updateStateTable(c1, c2);
+  appendTrace(step.trace);
+
+  // Explanation
+  document.getElementById('explainBox').innerHTML = step.explain;
+
+  // Progress
+  currentStep++;
+  document.getElementById('stepNum').textContent = currentStep;
+  document.getElementById('progressFill').style.width =
+    `${(currentStep / scenario.steps.length) * 100}%`;
+
+  // Disable button at end
+  if (currentStep >= scenario.steps.length) {
+    document.getElementById('nextBtn').textContent = '✓ Complete';
+    document.getElementById('nextBtn').disabled = true;
+    document.getElementById('explainBox').innerHTML +=
+      '<br><br><span style="color:var(--green)">✓ Scenario complete! Switch tabs to try another scenario.</span>';
+  }
+}
+
+function resetScenario() {
+  currentStep = 0;
+  floorRequests = {};
+
+  // Reset elevator state based on scenario start
+  if (currentScenario === 1) {
+    elevators = [
+      { id: 1, floor: 3, direction: 'IDLE', state: 'IDLE', queue: 0 },
+      { id: 2, floor: 1, direction: 'IDLE', state: 'IDLE', queue: 0 }
+    ];
+  } else {
+    elevators = [
+      { id: 1, floor: 1, direction: 'IDLE', state: 'IDLE', queue: 0 },
+      { id: 2, floor: 1, direction: 'IDLE', state: 'IDLE', queue: 0 }
+    ];
+  }
+
+  renderShafts();
+  updateStateTable(false, false);
+
+  document.getElementById('traceBody').innerHTML = `
+    <div class="trace-empty">
+      <div class="icon">⌥</div>
+      <div>Trace will appear here step by step</div>
+    </div>`;
+
+  document.getElementById('explainBox').innerHTML =
+    'Press <strong>Next Step</strong> to begin tracing the flow — each click advances one method call at a time.';
+
+  document.getElementById('stepNum').textContent = '0';
+  document.getElementById('progressFill').style.width = '0%';
+
+  const scenario = scenarios[currentScenario];
+  document.getElementById('totalSteps').textContent = scenario.steps.length;
+
+  const btn = document.getElementById('nextBtn');
+  btn.textContent = '▶ Next Step';
+  btn.disabled = false;
+}
+
+function loadScenario(idx, el) {
+  currentScenario = idx;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  resetScenario();
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+
+document.getElementById('totalSteps').textContent = scenarios[0].steps.length;
+renderShafts();
+updateStateTable(false, false);
+</script>
+</body>
+</html>
