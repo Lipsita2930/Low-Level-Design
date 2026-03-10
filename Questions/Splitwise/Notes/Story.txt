@@ -1,0 +1,17 @@
+I have  a splitwise application
+The main components are USER, EXPENSE, GROUP
+The user will have 
+        userId, userName, email, phone,  Map<String,double> (The map of userid, amount basic expense tracker for a user)
+The comes expense
+        expenseId, expenseDescription, paidByUserId,  amount, groupId, List<Split>  The expense should be splited by which user
+Then comes Split    
+        userId, amount
+Then How to split this introduces split strategies
+        SplitStrategy, ExactSplit, EqualSplit, PercentSpit
+This introduces factory to create the split strategies
+Now comes the main part Group 
+        groupId, groupName, List<Users> who are part of the group + this is also acting as the Observer, Map<String, Expense> all the expense of the group
+        Map<String, Map<String, amount>> The balance sheet of all the users and their expenseDescription
+        This is also an observable that will add the user, remove the user and also notify the users when expense is added and settled.
+        so it will have addExpense that will update the balance sheet of the user and also the expense sheet
+        

@@ -1,20 +1,43 @@
 package Questions.ElevatorSystem.request;
 
-public abstract class ElevatorRequest {
-    
-    protected int floor;
 
-    public int getFloor() {
-        return floor;
+public abstract class ElevatorRequest implements ElevatorCommand {
+
+    private final String requestId;
+    private final long timestamp;
+    private final RequestType requestType;
+
+    public ElevatorRequest(String requestId, RequestType requestType) {
+        this.requestId = requestId;
+        this.requestType = requestType;
+        this.timestamp = System.currentTimeMillis();
     }
 
-    public void setFloor(int floor) {
-        this.floor = floor;
+    @Override
+    public abstract void execute();
+
+    public abstract int getFloor();
+
+    // --- Getters ---
+
+    public String getRequestId() {
+        return requestId;
     }
 
-    public ElevatorRequest(int floor) {
-        this.floor = floor;
+    public RequestType getRequestType() {
+        return requestType;
     }
 
+    public long getTimestamp() {
+        return timestamp;
+    }
 
+    @Override
+    public String toString() {
+        return "ElevatorRequest{" +
+                "requestId='" + requestId + '\'' +
+                ", requestType=" + requestType +
+                ", timestamp=" + timestamp +
+                '}';
+    }
 }
