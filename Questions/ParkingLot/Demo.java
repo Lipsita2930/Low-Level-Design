@@ -3,7 +3,6 @@ package Questions.ParkingLot;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.InputMismatchException;
 import java.util.List;
